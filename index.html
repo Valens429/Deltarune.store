@@ -32,6 +32,17 @@
             --input-text: #8ff0ff; --input-ph: #3b5aa8;
             --shadow: #0d1a66; --star: 150,190,255;
         }
+        .shine { position: relative; display: inline-block; }
+        .shine::after {
+            content: attr(data-text);
+            position: absolute; inset: 0;
+            color: transparent; text-shadow: none; pointer-events: none;
+            background: linear-gradient(100deg, transparent 38%, #00e5ff 50%, transparent 62%);
+            background-size: 250% 100%;
+            -webkit-background-clip: text; background-clip: text;
+            animation: sweep 3.6s linear infinite;
+        }
+        @keyframes sweep { from { background-position: 100% 0; } to { background-position: 0% 0; } }
         .c-accent { color: var(--accent); }
         .c-dim { color: var(--dim); }
 
@@ -83,7 +94,7 @@
         #soundBtn { position: fixed; top: 12px; right: 12px; z-index: 5; padding: 2px 10px; border-width: 3px; font-size: .9rem; }
 
         @media (prefers-reduced-motion: reduce) {
-            .soul, .title, #dialog::after, .blink, #contactBox.shake { animation: none; }
+            .shine::after, .soul, .title, #dialog::after, .blink, #contactBox.shake { animation: none; }
         }
     </style>
 <script>
@@ -104,7 +115,7 @@
 
         <header class="w-full text-center mt-10 sm:mt-14">
             <h1 class="title text-4xl sm:text-6xl md:text-7xl uppercase font-bold">
-                <span class="soul"><img src="logo.svg" alt="" class="logo" onerror="this.replaceWith('♥')"></span> <span class="site-name">DOMAINHERE</span>
+                <span class="soul"><img src="logo.svg" alt="" class="logo" onerror="this.replaceWith('♥')"></span> <span class="site-name shine">DOMAINHERE</span>
             </h1>
         </header>
 
@@ -166,7 +177,7 @@
         (function () {
             var name = window.__SITE.toUpperCase();
             document.title = name;
-            document.querySelectorAll('.site-name').forEach(function (n) { n.textContent = name; });
+            document.querySelectorAll('.site-name').forEach(function (n) { n.textContent = name; n.setAttribute('data-text', name); });
             var f = document.querySelector('[name="from_name"]'); if (f) f.value = name;
         })();
 
@@ -210,11 +221,22 @@
         function toggleSound() {
             soundOn = !soundOn;
             if (soundOn && !audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (soundOn && audioCtx.state === 'suspended') audioCtx.resume();
             const b = document.getElementById('soundBtn');
             b.textContent = 'SOUND: ' + (soundOn ? 'ON' : 'OFF');
             b.setAttribute('aria-pressed', soundOn);
             if (soundOn) blip();
         }
+        let autoSound = true;
+        function firstInteraction(e) {
+            if (!autoSound) return;
+            autoSound = false;
+            if (e.target.closest && e.target.closest('#soundBtn')) return;
+            if (!soundOn) toggleSound();
+        }
+        document.addEventListener('click', firstInteraction, true);
+        document.addEventListener('keydown', firstInteraction, true);
+
         function blip() {
             if (!soundOn || !audioCtx) return;
             const o = audioCtx.createOscillator(), g = audioCtx.createGain();
