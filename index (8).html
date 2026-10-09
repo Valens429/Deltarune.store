@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DOMAINHERE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" href="logo.svg" type="image/svg+xml">
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        @font-face {
+            font-family: 'RetroFont';
+            src: url('typo.ttf') format('truetype');
+            font-display: swap;
+        }
+        
+        :root {
+            --heart: #ff0000; --yellow: #ffff00;
+            --bg: #000; --bgimg: none; --box: #000;
+            --fg: #fff; --dim: #d1d5db; --border: #fff;
+            --accent: #facc15; --hover-text: #b8a800;
+            --input-text: #00ff00; --input-ph: #2c6b2c;
+            --shadow: #3a3a3a; --star: 255,255,255;
+        }
+        
+        :root[data-theme="deltarune"] {
+            --bg: #030821;
+            --bgimg: linear-gradient(180deg, #02061a 0%, #0a1650 55%, #14246e 100%);
+            --box: #050c33;
+            --fg: #e8f0ff; --dim: #9db4ff; --border: #8fb4ff;
+            --accent: #ff7ad9; --hover-text: #1b2a8a;
+            --input-text: #8ff0ff; --input-ph: #3b5aa8;
+            --shadow: #0d1a66; --star: 150,190,255;
+        }
+        .c-accent { color: var(--accent); }
+        .c-dim { color: var(--dim); }
+
+        html, body { height: 100%; }
+        body {
+            background: var(--bg) var(--bgimg) fixed;
+            color: var(--fg);
+            font-family: 'RetroFont', 'VT323', 'Courier New', monospace;
+            font-size: 20px;
+            image-rendering: pixelated;
+            overflow-x: hidden;
+        }
+        #stars { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+        .layer { position: relative; z-index: 1; }
+
+        .undertale-box { border: 4px solid var(--border); background: var(--box); }
+        .undertale-btn {
+            border: 4px solid var(--border); background: var(--box); color: var(--fg);
+            cursor: pointer; user-select: none; transition: none;
+        }
+        .undertale-btn:hover, .undertale-btn:focus-visible { background: var(--fg); color: var(--bg); outline: none; }
+        .undertale-btn:hover .heart-text, .undertale-btn:focus-visible .heart-text { color: var(--hover-text); }
+        .undertale-btn:disabled { opacity: .5; cursor: wait; }
+        .heart-icon { color: var(--heart); display: inline-block; width: 1.4em; opacity: 0; }
+        .undertale-btn:hover .heart-icon, .undertale-btn:focus-visible .heart-icon { opacity: 1; }
+
+        .logo { height: 1em; width: auto; display: inline-block; vertical-align: -0.12em; image-rendering: auto; }
+        
+        .soul { color: var(--heart); display: inline-block; animation: bob 1.4s steps(2) infinite; }
+        @keyframes bob { 50% { transform: translateY(-6px); } }
+
+        .title { animation: drop .9s steps(6) both; letter-spacing: .18em; text-shadow: 4px 4px 0 var(--shadow); }
+        @keyframes drop { from { transform: translateY(-40px); opacity: 0; } }
+
+        #dialog { min-height: 4.6rem; }
+        #dialog::after { content: '▮'; margin-left: 4px; animation: blinker 1s steps(1) infinite; }
+        .blink { animation: blinker 1s steps(1) infinite; }
+        @keyframes blinker { 50% { opacity: 0; } }
+
+        .undertale-input { background: var(--box); border: 3px solid var(--border); color: var(--input-text); font-family: inherit; font-size: 1.05rem; }
+        .undertale-input:focus { outline: none; border-color: var(--accent); }
+        .undertale-input::placeholder { color: var(--input-ph); }
+        #contactBox.shake { animation: shake .35s steps(4); }
+        @keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+
+        .hp-bar { display: inline-block; width: 70px; height: 16px; background: #c00000; vertical-align: middle; }
+        .hp-bar i { display: block; height: 100%; width: 100%; background: var(--yellow); }
+
+        #soundBtn { position: fixed; top: 12px; right: 12px; z-index: 5; padding: 2px 10px; border-width: 3px; font-size: .9rem; }
+
+        @media (prefers-reduced-motion: reduce) {
+            .soul, .title, #dialog::after, .blink, #contactBox.shake { animation: none; }
+        }
+    </style>
+<script>
+        (function () {
+            var host = (location.hostname || '').toLowerCase();
+            var q = new URLSearchParams(location.search).get('theme');
+            var theme = (q === 'undertale' || host.indexOf('undertale') !== -1) ? 'undertale' : 'deltarune';
+            document.documentElement.setAttribute('data-theme', theme);
+            window.__SITE = host && host !== 'localhost' && host.indexOf('.') !== -1 ? host.replace(/^www\./,'') : theme + '.store';
+        })();
+    </script>
+</head>
+<body class="select-none">
+    <canvas id="stars"></canvas>
+    <button id="soundBtn" class="undertale-btn" onclick="toggleSound()" aria-pressed="false">SOUND: OFF</button>
+
+    <div class="layer min-h-screen flex flex-col justify-between items-center p-4 sm:p-8">
+
+        <header class="w-full text-center mt-10 sm:mt-14">
+            <h1 class="title text-4xl sm:text-6xl md:text-7xl uppercase font-bold">
+                <span class="soul"><img src="logo.svg" alt="" class="logo" onerror="this.replaceWith('♥')"></span> <span class="site-name">DOMAINHERE</span>
+            </h1>
+        </header>
+
+        <main class="w-full max-w-xl my-8 flex flex-col items-center">
+            
+            <div class="undertale-box w-full p-5 mb-8 text-lg sm:text-xl leading-snug">
+                <p id="dialog" aria-live="polite"></p>
+            </div>
+
+            <button id="toggleBtn" onclick="toggleContactForm()" class="undertale-btn px-6 py-3 text-lg sm:text-xl tracking-wider uppercase mb-8 w-full flex items-center justify-center">
+                <span class="heart-icon"><img src="logo.svg" alt="" class="logo" onerror="this.replaceWith('♥')"></span>
+                <span class="heart-text">Want to drop ideas or need me?</span>
+            </button>
+
+            <div id="contactBox" class="undertale-box w-full p-6 hidden">
+                <div class="text-base c-accent mb-4">
+                    * (Fill out the box to send a message to the owner of this lonely place...)
+                </div>
+
+                <form id="contactForm" onsubmit="handleFormSubmit(event)" class="flex flex-col gap-4">
+                    <input type="hidden" name="access_key" value="fc082d27-cc7e-4810-83d1-811c93e37db7">
+                    <input type="hidden" name="subject" value="Nuevo mensaje desde DOMAINHERE">
+                    <input type="hidden" name="from_name" value="DOMAINHERE">
+                    <input type="hidden" name="web_origen" id="webOrigen" value="">
+                    <input type="checkbox" name="botcheck" class="hidden" style="display:none" tabindex="-1" autocomplete="off">
+
+                    <div>
+                        <label for="email" class="block text-base uppercase mb-1 c-dim">* Your Email / Contact:</label>
+                        <input type="text" id="email" name="email" required placeholder="human@example.com" class="undertale-input w-full p-2 rounded-none">
+                    </div>
+                    <div>
+                        <label for="message" class="block text-base uppercase mb-1 c-dim">* Your Idea or Message:</label>
+                        <textarea id="message" name="message" rows="3" required placeholder="Type something cool..." class="undertale-input w-full p-2 rounded-none resize-none"></textarea>
+                    </div>
+                    <button type="submit" id="sendBtn" class="undertale-btn py-2 px-5 text-lg uppercase tracking-widest self-end mt-2">
+                        [ SEND ]
+                    </button>
+                </form>
+
+                <div id="feedbackMsg" class="hidden mt-4 text-base text-center"></div>
+            </div>
+        </main>
+
+        <footer class="w-full text-center pb-4 c-dim">
+            <div class="mb-3 text-lg">
+                <span class="site-name">DOMAINHERE</span> &nbsp; LV 1 &nbsp; HP <span class="hp-bar"><i></i></span> 20 / 20
+            </div>
+            <div class="flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-6 text-base c-dim" style="opacity:.8">
+                <span>* I don't know what to put on this website</span>
+                <span class="hidden sm:inline">•</span>
+                <span style="opacity:.7">© 2026 <span class="site-name">DOMAINHERE</span></span>
+            </div>
+            <div class="mt-3 text-sm c-dim" style="opacity:.6">* Fan site. Not affiliated with Toby Fox, Undertale or Deltarune.</div>
+        </footer>
+    </div>
+
+    <script>
+        
+        (function () {
+            var name = window.__SITE.toUpperCase();
+            document.title = name;
+            document.querySelectorAll('.site-name').forEach(function (n) { n.textContent = name; });
+            var f = document.querySelector('[name="from_name"]'); if (f) f.value = name;
+        })();
+
+        (function () {
+            const c = document.getElementById('stars'), ctx = c.getContext('2d');
+            const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            let stars = [], last = 0;
+            function init() {
+                c.width = innerWidth; c.height = innerHeight;
+                stars = Array.from({ length: Math.floor(innerWidth * innerHeight / 14000) }, () => {
+                    const big = Math.random() < .2;
+                    return {
+                        x: Math.floor(Math.random() * c.width / 4) * 4,
+                        y: Math.random() * c.height,
+                        s: big ? 6 : 3,
+                        v: big ? 40 + Math.random() * 25 : 15 + Math.random() * 15,
+                        p: Math.random() * 6.28
+                    };
+                });
+            }
+            function draw(t) {
+                const dt = last ? Math.min((t - last) / 1000, .1) : 0; last = t;
+                const rgb = getComputedStyle(document.documentElement).getPropertyValue('--star');
+                ctx.clearRect(0, 0, c.width, c.height);
+                for (const s of stars) {
+                    if (!reduce) {
+                        s.y += s.v * dt;
+                        if (s.y > c.height) { s.y = -s.s; s.x = Math.floor(Math.random() * c.width / 4) * 4; }
+                    }
+                    const a = reduce ? .5 : .2 + .5 * Math.abs(Math.sin(t / 1400 + s.p));
+                    ctx.fillStyle = 'rgba(' + rgb + ',' + a + ')';
+                    ctx.fillRect(s.x, Math.floor(s.y / 3) * 3, s.s, s.s);
+                }
+                if (!reduce) requestAnimationFrame(draw);
+            }
+            addEventListener('resize', init);
+            init(); requestAnimationFrame(draw);
+        })();
+
+        let soundOn = false, audioCtx = null;
+        function toggleSound() {
+            soundOn = !soundOn;
+            if (soundOn && !audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const b = document.getElementById('soundBtn');
+            b.textContent = 'SOUND: ' + (soundOn ? 'ON' : 'OFF');
+            b.setAttribute('aria-pressed', soundOn);
+            if (soundOn) blip();
+        }
+        function blip() {
+            if (!soundOn || !audioCtx) return;
+            const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+            o.type = 'square'; o.frequency.value = 380 + Math.random() * 60;
+            g.gain.setValueAtTime(.04, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(.0001, audioCtx.currentTime + .06);
+            o.connect(g); g.connect(audioCtx.destination);
+            o.start(); o.stop(audioCtx.currentTime + .06);
+        }
+
+        const intro = "* i bought this domain just for fun.";
+        const pool = [
+            "* Susie says this website is lame. She is not wrong.",
+            "* Ralsei thinks this website is great. Ralsei thinks everything is great.",
+            "* Kris says nothing. Kris has never said anything.",
+            "* Noelle asks if the website is okay. The website is not okay.",
+            "* Spamton calls this domain a BIG SHOT deal. It cost one dollar.",
+            "* Lancer says he built this website. He did not.",
+            "* Berdly read the code and says it could be better. Nobody asked Berdly.",
+            "* Toriel asks if you have eaten today. Go eat something.",
+            "* Ralsei offers you a scarf. It is the only thing on this website.",
+            "* Susie wants to know where the snacks are. There are no snacks here.",
+            "* Kris looks at the website. Kris looks at you. Kris leaves.",
+            "* Ralsei asks you not to read the source code. You read it anyway.",
+            "* Noelle says it is cold in here. The server is fine. It is the vibes.",
+            "* Susie clicked every button on this page. Nothing happened. She is mad.",
+            "* Lancer shouts something about being a bad guy. Nobody is listening.",
+            "* This website has no content. Ralsei is proud of it anyway.",
+            "* Berdly says he would have used React. You feel a wave of disinterest.",
+            "* A cat walks across the keyboard. The code is now worse. Nobody notices.",
+            "* Spamton wants to sell you a sofa. You can't afford it. Neither can he.",
+            "* Susie is chewing on something. You decide not to ask what.",
+            "* You stare at the empty space where the content should be. It stares back.",
+            "* The domain cost one dollar. You feel like a business tycoon.",
+            "* A lone cursor blinks in the void. It has been blinking for a while.",
+            "* The contact form works. You are not sure how. Neither is the form.",
+            "* You smell something burning. It is the free hosting.",
+            "* There is a button here. Pressing it will not change your life.",
+            "* The stars twinkle. They are just pixels, but they are trying their best.",
+            "* This website has been under construction since the day it was born.",
+            "* You feel a sudden urge to buy another domain.",
+            "* The text keeps typing. Nobody is reading it. It keeps typing.",
+            "* You pet the website. Nothing happens. You feel better anyway.",
+            "* Somewhere, a TikTok algorithm stirs.",
+            "* You check the page for secrets. There are none. Maybe one.",
+            "* Loading the vibes... done.",
+            "* Your wallet is empty. You are the proud owner of a website.",
+            "* The wind blows. It is a very small website, so it hardly notices.",
+            "* this is peak."
+        ];
+        for (let i = pool.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+        const lines = [intro].concat(pool);
+        const el = document.getElementById('dialog');
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        let li = 0;
+        function typeLine() {
+            const text = lines[li]; let i = 0; el.textContent = '';
+            if (reduceMotion) { el.textContent = text; setTimeout(next, 3500); return; }
+            (function tick() {
+                el.textContent = text.slice(0, ++i);
+                if (text[i - 1] !== ' ') blip();
+                if (i < text.length) setTimeout(tick, 45);
+                else setTimeout(next, 2200);
+            })();
+        }
+        function next() { li = (li + 1) % lines.length; typeLine(); }
+        typeLine();
+
+        function toggleContactForm() {
+            const box = document.getElementById('contactBox');
+            if (box.classList.contains('hidden')) {
+                box.classList.remove('hidden');
+                setTimeout(() => {
+                    box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    document.getElementById('email').focus();
+                }, 100);
+            } else box.classList.add('hidden');
+        }
+
+        async function handleFormSubmit(event) {
+            event.preventDefault();
+            const form = document.getElementById('contactForm');
+            const box = document.getElementById('contactBox');
+            const feedback = document.getElementById('feedbackMsg');
+            const btn = document.getElementById('sendBtn');
+            const original = btn.textContent;
+
+            const host = window.location.hostname || 'local (archivo)';
+            document.getElementById('webOrigen').value = host + ' | ' + window.location.href;
+            form.querySelector('[name="subject"]').value = 'Nuevo mensaje desde ' + host;
+
+            btn.textContent = '[ SENDING... ]';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('https://api.web3forms.com/submit', {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json' },
+                    body: new FormData(form)
+                });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.message);
+                feedback.textContent = '* Message sent. You are filled with determination.';
+                feedback.className = 'mt-4 text-base text-center c-accent';
+                form.reset();
+            } catch (err) {
+                feedback.textContent = '* ERROR: the message got lost in the void. Try again later.';
+                feedback.className = 'mt-4 text-base text-center text-red-500';
+            }
+
+            box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake');
+            btn.textContent = original;
+            btn.disabled = false;
+            setTimeout(() => feedback.classList.add('hidden'), 5000);
+        }
+    </script>
+</body>
+</html>
