@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DOMAINHERE</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
     <link rel="icon" href="logo.svg" type="image/svg+xml">
     <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
     <style>
@@ -67,7 +68,7 @@
         .undertale-btn:hover .heart-text, .undertale-btn:focus-visible .heart-text { color: var(--hover-text); }
         .undertale-btn:disabled { opacity: .5; cursor: wait; }
         .heart-icon { color: var(--heart); display: inline-block; width: 1.4em; opacity: 0; }
-        #toggleBtn::after { content: ''; display: inline-block; width: 1.4em; }
+        #toggleBtn::after, #hereBtn::after { content: ''; display: inline-block; width: 1.4em; }
         .undertale-btn:hover .heart-icon, .undertale-btn:focus-visible .heart-icon { opacity: 1; }
 
         .logo { height: 1em; width: auto; display: inline-block; vertical-align: -0.12em; image-rendering: auto; }
@@ -96,10 +97,16 @@
 
         #topbar { position: fixed; top: 12px; right: 12px; z-index: 5; display: flex; gap: 8px; align-items: center; }
         #topbar .undertale-btn { padding: 2px 10px; border-width: 3px; font-size: .9rem; }
+        .off { display: none !important; }
+        #hereBtn.done, #hereBtn.done:hover { background: var(--box); color: var(--yellow); border-color: var(--yellow); opacity: 1; cursor: default; }
+        #hereBtn.done:hover .heart-text { color: var(--yellow); }
+        #hereBtn.done .heart-icon { opacity: 0; }
+        .flash { animation: flash .7s steps(4); }
+        @keyframes flash { 50% { color: var(--yellow); transform: scale(1.08); } }
         .lang-btn.active { background: var(--fg); color: var(--bg); }
 
         @media (prefers-reduced-motion: reduce) {
-            .shine::after, .soul, .title, #dialog::after, .blink, #contactBox.shake { animation: none; }
+            .flash, .shine::after, .soul, .title, #dialog::after, .blink, #contactBox.shake { animation: none; }
         }
     </style>
 <script>
@@ -141,7 +148,7 @@
                 <span class="heart-text" data-i18n="drop">Need something from me?</span>
             </button>
 
-            <div id="contactBox" class="undertale-box w-full p-6 hidden">
+            <div id="contactBox" class="undertale-box w-full p-6 mb-8 hidden">
                 <div class="text-base c-accent mb-4" data-i18n="hint">
                     * (Fill out the box to send a message to the owner of this lonely place...)
                 </div>
@@ -168,9 +175,14 @@
 
                 <div id="feedbackMsg" class="hidden mt-4 text-base text-center"></div>
             </div>
+        <button id="hereBtn" onclick="sayHere()" class="undertale-btn off px-6 py-3 text-lg sm:text-xl tracking-wider uppercase w-full flex items-center justify-center">
+                <span class="heart-icon"><img src="logo.svg" alt="" class="logo" onerror="this.replaceWith('♥')"></span>
+                <span id="hereText" class="heart-text" data-i18n="here">I was here</span>
+            </button>
         </main>
 
         <footer class="w-full text-center pb-4 c-dim">
+            <div id="countLine" class="off mb-3 text-xl c-accent"><span id="countText"></span></div>
             <div class="mb-3 text-lg">
                 <span class="site-name">DOMAINHERE</span> &nbsp; LV 1 &nbsp; HP <span class="hp-bar"><i></i></span> 20 / 20
             </div>
@@ -269,6 +281,12 @@
                 labelEmail: "* Your Email / Contact:", labelMsg: "* Your Idea or Message:",
                 phEmail: "human@example.com", phMsg: "Type something cool...",
                 send: "[ SEND ]", sending: "[ SENDING... ]",
+                here: "I was here",
+                hereDone: "* You were here. We will remember.",
+                hereError: "* The void rejected you. Try again.",
+                countOne: "* {n} human has been here",
+                countMany: "* {n} humans have been here",
+                countLoading: "* counting humans...",
                 sent: "* Message sent. You are filled with determination.",
                 error: "* ERROR: the message got lost in the void. Try again later.",
                 footerNote: "* I don't know what to put on this website",
@@ -281,6 +299,12 @@
                 labelEmail: "* Tu correo / contacto:", labelMsg: "* Tu idea o mensaje:",
                 phEmail: "humano@ejemplo.com", phMsg: "Escribe algo genial...",
                 send: "[ ENVIAR ]", sending: "[ ENVIANDO... ]",
+                here: "Yo estuve aquí",
+                hereDone: "* Estuviste aquí. Lo recordaremos.",
+                hereError: "* El vacío te rechazó. Inténtalo otra vez.",
+                countOne: "* {n} humano ha estado aquí",
+                countMany: "* {n} humanos han estado aquí",
+                countLoading: "* contando humanos...",
                 sent: "* Mensaje enviado. Estás lleno de determinación.",
                 error: "* ERROR: el mensaje se perdió en el vacío. Inténtalo más tarde.",
                 footerNote: "* No sé qué poner en esta web",
@@ -390,6 +414,7 @@
                 b.setAttribute('aria-pressed', on);
             });
             updateSoundLabel();
+            renderCount();
         }
 
         function setLang(l) {
@@ -446,8 +471,79 @@
             })();
         }
 
+        const SUPA_URL = "https://zeqsdzscyofsroiliqfy.supabase.co";
+        const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InplcXNkenNjeW9mc3JvaWxpcWZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1NzkwOTgsImV4cCI6MjEwNzE1NTA5OH0.TpdkCIj6cc_sb-WFqqDGcLzxx_cXLUltaUuMYJIkD6o";
+        let sb = null, total = null, hereDone = false;
+
+        function renderCount() {
+            const line = document.getElementById('countText');
+            if (total === null) { line.textContent = t('countLoading'); return; }
+            const n = total.toLocaleString(lang === 'es' ? 'es' : 'en');
+            line.textContent = t(total === 1 ? 'countOne' : 'countMany').replace('{n}', n);
+        }
+
+        function setTotal(n) {
+            const changed = total !== null && Number(n) !== total;
+            total = Number(n);
+            renderCount();
+            if (changed) {
+                const l = document.getElementById('countLine');
+                l.classList.remove('flash'); void l.offsetWidth; l.classList.add('flash');
+            }
+        }
+
+        function markHere() {
+            hereDone = true;
+            const btn = document.getElementById('hereBtn');
+            btn.classList.add('done');
+            btn.disabled = true;
+            document.getElementById('hereText').setAttribute('data-i18n', 'hereDone');
+            applyLang();
+        }
+
+        async function sayHere() {
+            if (!sb || hereDone) return;
+            const btn = document.getElementById('hereBtn'), txt = document.getElementById('hereText');
+            btn.disabled = true;
+            try {
+                const sess = (await sb.auth.getSession()).data.session;
+                if (!sess) throw new Error('no session');
+                const r = await sb.from('visitas').insert({ user_id: sess.user.id });
+                if (r.error && r.error.code !== '23505') throw r.error;
+                markHere();
+                const c = await sb.from('contador').select('total').eq('id', 1).single();
+                if (c.data) setTotal(c.data.total);
+            } catch (e) {
+                txt.textContent = t('hereError');
+                setTimeout(function () { txt.textContent = t('here'); btn.disabled = false; }, 2500);
+            }
+        }
+
+        async function initPresence() {
+            if (!window.supabase || SUPA_URL.indexOf('PEGA_AQUI') === 0) return;
+            document.getElementById('hereBtn').classList.remove('off');
+            document.getElementById('countLine').classList.remove('off');
+            renderCount();
+            try {
+                sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+                const c = await sb.from('contador').select('total').eq('id', 1).single();
+                if (c.data) setTotal(c.data.total);
+                sb.channel('contador-vivo')
+                    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'contador' }, function (p) { setTotal(p.new.total); })
+                    .subscribe();
+                let sess = (await sb.auth.getSession()).data.session;
+                if (!sess) sess = (await sb.auth.signInAnonymously()).data.session;
+                if (!sess) { document.getElementById('hereBtn').classList.add('off'); return; }
+                const mine = await sb.from('visitas').select('user_id').maybeSingle();
+                if (mine.data) markHere();
+            } catch (e) {
+                document.getElementById('hereBtn').classList.add('off');
+            }
+        }
+
         applyLang();
         typeLine();
+        initPresence();
 
         function toggleContactForm() {
             const box = document.getElementById('contactBox');
